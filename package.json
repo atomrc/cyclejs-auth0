@@ -28,6 +28,8 @@
     "babel-register": "^6.9.0",
     "expect.js": "^0.3.1",
     "mocha": "^2.5.3",
-    "xstream": "^5.2.1"
+    "xstream": "^5.2.1",
+    "jsdom": "^9.4.1",
+    "mocha-jsdom": "^1.1.0"
   }
 }
