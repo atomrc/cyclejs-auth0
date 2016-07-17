@@ -1,0 +1,23 @@
+{
+  "name": "cyclejs-auth0",
+  "version": "0.0.1",
+  "description": "Everything you need to start playing with Auth0 on your Cyclejs app (a driver and a component wrapper)",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/atomrc/cyclejs-auth0.git"
+  },
+  "keywords": [
+    "auth0",
+    "cyclejs"
+  ],
+  "author": "Thomas Belin <me@thomasbelin.fr>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/atomrc/cyclejs-auth0/issues"
+  },
+  "homepage": "https://github.com/atomrc/cyclejs-auth0#readme"
+}
