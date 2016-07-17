@@ -13,9 +13,9 @@ Auth0LockMock.prototype = {
 };
 
 const failingLocalStorage = {
-    getItem: () => { throw new Error("should not be called") },
-    setItem: () => { throw new Error("should not be called") },
-    removeItem: () => { throw new Error("should not be called") }
+    getItem: () => { throw new Error("getItem should not be called") },
+    setItem: () => { throw new Error("setItem should not be called") },
+    removeItem: () => { throw new Error("removeItem should not be called") }
 };
 
 describe("makeAuth0Driver", function () {
@@ -32,7 +32,7 @@ describe("makeAuth0Driver", function () {
             expect(key).to.be("appkey");
             expect(domain).to.be("appdomain");
             lockCreated = true;
-        }, localStorageMock);
+        }, failingLocalStorage);
 
         const driver = makeAuth0Driver("appkey", "appdomain")(xs.empty());
         expect(driver).to.have.property("select")
@@ -147,4 +147,82 @@ describe("makeAuth0Driver", function () {
             });
         });
     });
-})
+
+    describe("token$ stream", () => {
+        function makeLocalStorage(overrides) {
+            var defaults = {
+                getItem: () => "defaulttoken",
+                setItem: noop,
+                removeItem: noop
+            }
+            return Object.assign({}, defaults, overrides);
+        }
+        const makeAuth0Driver = buildDriver(Auth0LockMock, makeLocalStorage());
+
+        it("should send initial token", (done) => {
+            const driver = makeAuth0Driver("key", "domain")(xs.empty());
+
+            driver
+                .token$
+                .addListener({
+                    next: response => {
+                        expect(response).to.be("defaulttoken");
+                        done();
+                    },
+                    error: noop,
+                    complete: noop
+                });
+        });
+
+        describe("logout", () => {
+            var itemRemoved = false;
+            const localStorage = makeLocalStorage({
+                removeItem: () => itemRemoved = true
+            });
+            const makeAuth0Driver = buildDriver(Auth0LockMock, localStorage);
+
+            const driver = makeAuth0Driver("key", "domain")(xs.of({ action: "logout" }));
+
+            it("should send empty token and remove from storage", (done) => {
+                driver
+                    .token$
+                    .drop(1)
+                    .addListener({
+                        next: response => {
+                            expect(response).to.be(null);
+                            expect(itemRemoved).to.be(true);
+                            done();
+                        },
+                        error: console.error.bind(console),
+                        complete: noop
+                    });
+            });
+        });
+
+        describe("parsehash", () => {
+            var itemSetted = false;
+            const localStorage = makeLocalStorage({
+                setItem: () => itemSetted = true
+            });
+            Auth0LockMock.prototype.parseHash = () => ({ id_token: "parsedtoken" });
+            const makeAuth0Driver = buildDriver(Auth0LockMock, localStorage);
+
+            const driver = makeAuth0Driver("key", "domain")(xs.of({ action: "parseHash" }));
+
+            it("should send parsed token and store it in localStorage", (done) => {
+                driver
+                    .token$
+                    .drop(1)
+                    .addListener({
+                        next: response => {
+                            expect(response).to.be("parsedtoken");
+                            expect(itemSetted).to.be(true);
+                            done();
+                        },
+                        error: console.error.bind(console),
+                        complete: noop
+                    });
+            });
+        });
+    });
+});
