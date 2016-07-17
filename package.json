@@ -19,5 +19,15 @@
   "bugs": {
     "url": "https://github.com/atomrc/cyclejs-auth0/issues"
   },
-  "homepage": "https://github.com/atomrc/cyclejs-auth0#readme"
+  "homepage": "https://github.com/atomrc/cyclejs-auth0#readme",
+  "devDependencies": {
+    "babel": "^6.5.2",
+    "babel-loader": "^6.2.4",
+    "babel-plugin-transform-object-rest-spread": "^6.8.0",
+    "babel-preset-es2015": "^6.9.0",
+    "babel-register": "^6.9.0",
+    "expect.js": "^0.3.1",
+    "mocha": "^2.5.3",
+    "xstream": "^5.2.1"
+  }
 }
