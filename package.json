@@ -4,7 +4,7 @@
   "description": "Everything you need to start playing with Auth0 on your Cyclejs app (a driver and a component wrapper)",
   "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha --compilers js:babel-core/register tests/*.js"
   },
   "repository": {
     "type": "git",
