@@ -70,11 +70,7 @@ function buildDriver(Auth0Lock, localStorage) {
         },
 
         "logout": function () {
-            var promise = new Promise(resolve => {
-                localStorage.removeItem(storageKey);
-                resolve(null);
-            });
-            return promise;
+            return new Promise(resolve => resolve(null));
         }
     };
 
@@ -100,11 +96,26 @@ function buildDriver(Auth0Lock, localStorage) {
 
         const select = responseSelector(response$$);
 
+        const initialToken$ = xs
+            .of(null)
+            .map(() => localStorage.getItem(storageKey));
+
+        const removeToken$ = select("logout")
+            .map(() => {
+                localStorage.removeItem(storageKey)
+                return null;
+            });
+
+        const storeToken$ = select("parseHash")
+            .map((token) => {
+                localStorage.setItem(storageKey, token)
+                return token;
+            });
+
         return {
             select: select,
             token$: xs
-                .merge(select("parseHash"), select("logout"))
-                .startWith(localStorage.getItem(storageKey))
+                .merge(initialToken$, storeToken$, removeToken$)
         };
     }
 
