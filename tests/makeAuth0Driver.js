@@ -12,14 +12,14 @@ Auth0LockMock.prototype = {
     parseHash: () => {}
 };
 
-const localStorageMock = {
-    getItem: () => null,
-    setItem: () => null,
-    removeItem: () => null
+const failingLocalStorage = {
+    getItem: () => { throw new Error("should not be called") },
+    setItem: () => { throw new Error("should not be called") },
+    removeItem: () => { throw new Error("should not be called") }
 };
 
 describe("makeAuth0Driver", function () {
-    const makeAuth0Driver = buildDriver(Auth0LockMock, localStorageMock);
+    const makeAuth0Driver = buildDriver(Auth0LockMock, failingLocalStorage);
 
     it("should throw if parameters are not given", () => {
         const build = () => makeAuth0Driver()
