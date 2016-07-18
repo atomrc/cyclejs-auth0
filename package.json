@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "test": "mocha --compilers js:babel-core/register tests/*.js",
-    "dist": "babel src/driver/ -d dist/"
+    "dist": "babel src/driver/ -d dist/",
+    "prepublish": "npm run dist"
   },
   "repository": {
     "type": "git",
