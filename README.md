@@ -52,6 +52,19 @@ function main(sources) {
 }
 ```
 
+## Reading responses from Auth0
+
+Whenever an action is run against the lock, the driver is outputing a response stream. you can consume that stream using the `select` function. You can use it to filter the action you want to listen to. For example if you want to do something when the lock has shown, you can do the following:
+
+```javascript
+function main({ auth0 }) {
+    return {
+        DOM: auth0
+            .select("show")
+            .map(div("Please log in")); //ok this example is lame ...
+}
+```
+
 ## I want my token
 
 Ok this whole authentication thing is here for one thing: getting the user's jwt.  
@@ -83,19 +96,6 @@ Here are the features of the `token$`:
 - stores the token in localStorage whenever a `parseHash` is run;
 - removes the token from localStorage when you send a `logout` action;
 - outputs the jwt token for you to consume.
-
-## Reading responses from Auth0
-
-Whenever an action is run against the lock, the driver is outputing a response stream. you can consume that stream using the `select` function. You can use it to filter the action you want to listen to. For example if you want to do something when the lock has shown, you can do the following:
-
-```javascript
-function main({ auth0 }) {
-    return {
-        DOM: auth0
-            .select("show")
-            .map(div("Please log in")); //ok this example is lame ...
-}
-```
 
 ## I want to deal with the token's storage myself
 
