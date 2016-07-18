@@ -8,6 +8,11 @@
 - store token in the localStorage (or you can do it yourself if you want);
 - add a security layer to your components that need authentication (will be available with the component wrapper).
 
+## Compatibility
+
+`cyclejs-auth0` is (for the moment) only compatible with `@cycle/xstream-run`.  
+It will be compatible with any stream lib in the future, but if you are impatient, a PR will be welcomed ;)
+
 ## Installation
 
     npm i cyclejs-auth0
