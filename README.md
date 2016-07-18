@@ -60,6 +60,10 @@ function main(sources) {
 }
 ```
 
+Note that token will only be stored and read from localStorage if you subscribe to the `token$` stream.  
+That means the token won't be lost forever in the localStorage if you never use the `token$`.  
+Last thing, if you use the `token$` don't forget to call the `logout` action to remove token from localStorage ;)
+
 ## Logging out
 
 to log out the current user, simply send a `logout` action. It will remove the token from the localStorage and send a `null` value to the `token$` stream
