@@ -28,7 +28,9 @@ function decorateSinks(sinks, token$, decorators) {
         var sink = sinks[sinkName];
         var decorate = decorators[sinkName];
         if (!sink) { return; }
-        sinks[sinkName] = token$.map(token => {
+        sinks[sinkName] = token$
+            .filter(token => !!token)
+            .map(token => {
                 return sink.map(data => decorate(data, token))
             })
             .flatten();
