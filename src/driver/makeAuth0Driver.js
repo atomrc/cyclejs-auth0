@@ -116,6 +116,7 @@ function buildDriver(Auth0Lock, localStorage) {
             select: select,
             token$: xs
                 .merge(initialToken$, storeToken$, removeToken$)
+                .remember()
         };
     }
 
