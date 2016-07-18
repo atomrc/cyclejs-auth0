@@ -125,3 +125,13 @@ function main({ auth0, storage }) {
 ## Using the AuthenticationWrapper (soon to come)
 
 This package (will) also includes an AuthenticationWrapper that handles all the common action that needs to be triggered to get an authenticated user.
+
+## Feedback
+
+- "OMG it's awesome, it has changed my life"
+- "I use Auth0 like that, how can I do with your driver?"
+- "Would you condider implementing it?"
+- "You should do that instead of that"
+- "You really don't know how to speak english you french guys"
+
+As long as it is constructive and polite, any feedback will be welcomed, so please, be my guest :)
