@@ -1,5 +1,7 @@
 #cyclejs-auth0
 
+[![Build Status](https://travis-ci.org/atomrc/cyclejs-auth0.svg?branch=master)](https://travis-ci.org/atomrc/cyclejs-auth0)
+
 `cyclejs-auth0` contains a cyclejs driver and a component wrapper (not yet available) that allow you to:
 - init the auth0 lock;
 - send actions (and read responses) to the lock (like `show`, `getProfile` or `parseHash`);
