@@ -1,4 +1,18 @@
-#cyclejs-auth0 (WIP)
+#cyclejs-auth0
+
+`cyclejs-auth0` contains a cyclejs driver and a component wrapper (not yet available) that allow you to:
+- init the auth0 lock;
+- send actions (and read responses) to the lock (like `show`, `getProfile` or `parseHash`);
+- store token in the localStorage (or you can do it yourself if you want);
+- add a security layer to your components that need authentication (will be available with the component wrapper).
+
+## Installation
+
+    npm i cyclejs-auth0
+
+then in your source file:
+
+    import makeAuth0Driver from "cyclejs-auth0";
 
 ## Driver initialisation
 
@@ -36,42 +50,72 @@ function main(sources) {
 }
 ```
 
+## I want my token
+
+Ok this whole authentication thing is here for one thing: getting the user's jwt.  
+In order to get the token, the driver is giving you a `token$` stream, that you can subscribe to, that will output the user's token. In case there is no token or the user just logout, the stream will output a `null` value (in that case you probably want to send the lock a `show` action). 
+
+Here is a typical use of the `token$`:
+
+```javascript
+function main({ auth0 }) {
+    const userToken$ = auth0.token$;
+
+    const user$ = userToken$
+        .filter(token => !!token) //check that the token is not empty
+        .map(token => jwtDecode(token)) //decode jwt to get the basic user's info
+
+    return {
+        auth0: userToken$
+            .filter(token => !token) //if token is null
+            .mapTo({ action: "show" }) //then send auth0 the show action
+    }
+}
+```
+
+Nice thing about the `token$` is that it handles for you the **storage of the token into localStorage**. That means, if the user reload the page, the `token$` will still output the token.  
+To remove the token from the storage, don't forget to send the `logout` action.
+
+Here are the features of the `token$`:
+
+- stores the token in localStorage whenever a `parseHash` is run;
+- removes the token from localStorage when you send a `logout` action;
+- outputs the jwt token for you to consume.
+
 ## Reading responses from Auth0
 
-Ultimately, what you might want is the jwt sent by Auth0 once your user has logged in.  
-To do that, the driver is giving you a `select` function that allows you to filter the responses of the Auth0 lock and get the value.  
-So after I gave a `parseHash` action to the driver, I can read the response this way:
+Whenever an action is run against the lock, the driver is outputing a response stream. you can consume that stream using the `select` function. You can use it to filter the action you want to listen to. For example if you want to do something when the lock has shown, you can do the following:
 
 ```javascript
-function main(sources) {
-    const token$ = sources
-        .auth0
-        .select("parseHash"); //< and here is my token stream
-}
-```
-
-Actually you can do that in an even simplier way using the `token$` property that the driver is giving to you.  
-The `token$` has another quite powerfull feature: it stores the token in the localStorage, so your user won't have to type their credential at each reload:
-
-```javascript
-function main(sources) {
-    const token$ = sources.auth0.token$ //< token from the localStorage or from the `parseHash` response if local storage is empty
-    //this token will be null if a `logout` action is sent to the driver
-}
-```
-
-Note that token will only be stored and read from localStorage if you subscribe to the `token$` stream.  
-That means the token won't be lost forever in the localStorage if you never use the `token$`.  
-Last thing, if you use the `token$` don't forget to call the `logout` action to remove token from localStorage ;)
-
-## Logging out
-
-to log out the current user, simply send a `logout` action. It will remove the token from the localStorage and send a `null` value to the `token$` stream
-
-```javascript
-function main(sources) {
+function main({ auth0 }) {
     return {
-        auth0: xs.of({ action: "logout" })
+        DOM: auth0
+            .select("show")
+            .map(div("Please log in")); //ok this example is lame ...
+}
+```
+
+## I want to deal with the token's storage myself
+
+No problem, if you want to store the token yourself you need to:
+- **not** use the `token$` at all;
+- get the token by subscribing to `select("parseHash")`.
+
+Here is an example:
+
+```javascript
+function main({ auth0, storage }) {
+    var token$ = storage
+        .local
+        .getItem("token")
+        .filter(token => !!token);
+
+    //code that consumes the token$
+
+    return {
+        storage: auth0
+            .select("parseToken")
+            .map(token => ({ key: "token", value: token })) //will send a store action to the storage driver
     }
 }
 ```
