@@ -1,6 +1,6 @@
 /* global it, describe */
 import xs from "xstream";
-import buildDriver from "../src/driver/makeAuth0Driver";
+import buildDriver from "../src/makeAuth0Driver";
 import expect from "expect.js";
 
 var noop = () => {};
