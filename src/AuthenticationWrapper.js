@@ -1,12 +1,9 @@
 import xs from "xstream";
 import jwtDecode from "jwt-decode";
 
-const defaultShowOptions = {
-    action: "show",
-    params: {
-        authParams: { scope: "openid nickname" },
-        responseType: "token"
-    }
+const defaultAuth0ShowParams = {
+    authParams: { scope: "openid" },
+    responseType: "token"
 };
 
 function containsAuthenticationToken(location) {
@@ -70,7 +67,7 @@ function AuthenticationWrapper(sources) {
     const { router, auth0 } = sources;
     const {
         Child = () => { throw new Error("[Auth0Wrapper] missing child component") },
-        showOptions = defaultShowOptions,
+        auth0ShowParams = defaultAuth0ShowParams,
         decorators = {}
     } = sources.props.authWrapperParams;
 
@@ -81,7 +78,10 @@ function AuthenticationWrapper(sources) {
 
     const showLoginRequest$ = state$
         .filter(({ token, location }) => !token && !location.hasToken)
-        .mapTo(showOptions);
+        .mapTo({
+            action: "show",
+            params: auth0ShowParams
+        });
 
     const parseHashRequest$ = state$
         .filter(({ token, location }) => !token && location.hasToken)
