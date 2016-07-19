@@ -1,6 +1,6 @@
 {
   "name": "cyclejs-auth0",
-  "version": "0.0.2",
+  "version": "1.0.0",
   "description": "Everything you need to start playing with Auth0 on your Cyclejs app (a driver and a component wrapper)",
   "main": "dist/index.js",
   "scripts": {
