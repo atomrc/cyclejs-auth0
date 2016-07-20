@@ -1,5 +1,4 @@
 import xs from "xstream";
-import jwtDecode from "jwt-decode";
 
 const defaultAuth0ShowParams = {
     authParams: { scope: "openid" },
@@ -37,11 +36,9 @@ function decorateSinks(sinks, token$, decorators) {
 }
 
 function model(auth0, router) {
-    const token$ = auth0.token$;
-
-    const user$ = token$
-        .map(token => token ? jwtDecode(token) : null)
-        .remember()
+    const token$ = auth0
+        .token$
+        .remember();
 
     const location$ = router
         .history$
@@ -53,7 +50,7 @@ function model(auth0, router) {
             .map(([ token, location ]) => ({ token, location }))
             .remember()
 
-    return { user$, token$, state$ };
+    return { token$, state$ };
 }
 
 /**
@@ -71,9 +68,9 @@ function AuthenticationWrapper(sources) {
         decorators = {}
     } = sources.props.authWrapperParams;
 
-    const { user$, token$, state$ } = model(auth0, router);
+    const { token$, state$ } = model(auth0, router);
 
-    const childSources = { ...sources, props: { ...sources.props, user$ }};
+    const childSources = { ...sources, props: { ...sources.props, token$ }};
     const sinks = Child(childSources);
 
     const showLoginRequest$ = state$

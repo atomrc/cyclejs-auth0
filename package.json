@@ -26,7 +26,6 @@
   "homepage": "https://github.com/atomrc/cyclejs-auth0#readme",
   "dependencies": {
     "auth0-lock": "^9.0.0",
-    "jwt-decode": "^2.1.0",
     "xstream": "^5.0.0"
   },
   "devDependencies": {

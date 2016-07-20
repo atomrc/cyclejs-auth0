@@ -148,17 +148,17 @@ describe("AuthenticationWrapper", () => {
                         }));
                 });
 
-                it("should give decoded token to child", (done) => {
+                it("should give token to child", (done) => {
                     const sources = getSources({
                         auth0: { select: () => xs.empty(), token$: xs.of(token) },
                         props: {
                             authWrapperParams: {
                                 Child: ({ props }) => {
                                     props
-                                        .user$
+                                        .token$
                                         .addListener(getListener({
-                                            next: (user) => {
-                                                expect(user.nickname).to.be("felix")
+                                            next: (tok) => {
+                                                expect(tok).to.be(token)
                                                 done();
                                             }
                                         }))
