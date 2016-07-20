@@ -5,14 +5,14 @@
 `cyclejs-auth0` is composed of two entities (a [driver](#the-driver) and a [component wrapper](#the-component-wrapper)).
 
 The component wrapper allows you to:
-- [protect any of your component from unlogged users](#protecting-a-component);
-- [decorate some of your component's sinks with the user's token](#decorating-component-sinks-with-the-token).
+- protect any of your component from unlogged users [⬇](#protecting-a-component);
+- make authenticated HTTP request to your api endpoint[⬇](#decorating-component-sinks-with-the-token).
 
 The driver allows you to:
-- [init the auth0 lock](#driver-initialisation);
-- [send actions](#sending-action-to-the-auth0-lock) to the lock (like `show`, `getProfile` or `parseHash`);
-- [read responses](#reading-responses-from-auth0) from the lock;
-- [store token](#i-want-my-token) in the localStorage (or you can [do it yourself if you want](#i-want-to-deal-with-storage-myself)).
+- init the auth0 lock [⬇](#driver-initialisation);
+- send actions [⬇](#sending-action-to-the-auth0-lock) to the lock (like `show`, `getProfile` or `parseHash`);
+- read responses [⬇](#reading-responses-from-auth0) from the lock;
+- store token [⬇](#i-want-my-token) in `localStorage` (or you can do it yourself if you want [⬇](#i-want-to-deal-with-storage-myself)).
 
 ## Compatibility note
 
@@ -25,13 +25,13 @@ It will be compatible with any stream lib in the future, but if you are impatien
 
 ## The component wrapper
 
-This is, by far, the simplest way to integrate Auth0 into your cyclejs app. The component wrapper will protect any of your component from unlogged users (users that don't have a token in localStorage).  
+This is, by far, the simplest way to integrate Auth0 into your cyclejs app. The component wrapper will protect any of your component from unlogged users (users that don't have a token in `localStorage`).  
 
 ### Wrapper initialization
 
-The wrapper needs two thing to work properly:
+The wrapper needs two things to work properly:
 - the [cyclic-router](https://github.com/cyclejs-community/cyclic-router) (needed to read the token from the url hash fragment sent by Auth0);
-- (of course) the auth0 [driver included in this package](#the-driver).
+- (of course) the [auth0 driver](#the-driver) included in this package.
 
 so before you start, please run:
 
@@ -58,9 +58,9 @@ const drivers = {
 
 ### Protecting a component
 
-Protecting a component is as simple as calling `const ProtectedComponent = protect(MyComponent)`. You then get a new component that is the composition of the authentication wrapper and your component. You can use it as any cyclejs component: `const sinks = ProtectedComponent(sources)`.
+Protecting a component is as simple as calling `const ProtectedComponent = protect(MyComponent)`. You then get a new protected component. You can use it as any cyclejs component: `const sinks = ProtectedComponent(sources)`.
 
-Here is a simple example of how to use the `protect` function
+Here is a simple example of how to use `protect`
 
 ```javascript
 import {protect} from "cyclejs-auth0";
@@ -85,7 +85,9 @@ function main(sources) {
 }
 ```
 
-### Decorating component sinks with the token
+Now if the user is not logged in when the component is instantiated, the Auth0 form will show up.
+
+### Making authenticated HTTP calls
 
 Authentication in a single page app is often not only about protecting a component but also about sending the authentication token to your api endpoint. There is a simple way to do that with the component wrapper, the `decorators` option of the `protect` function.
 
@@ -128,17 +130,19 @@ const ProtectedComponent = protect(Component, {
 });
 ```
 
-To know all the parameters you can set, I invite you to have a look at the [Auth0 lock documentation](https://auth0.com/docs/libraries/lock/customization)
+All the parameters you can set are documented in the [Auth0 lock documentation](https://auth0.com/docs/libraries/lock/customization)
 
-### Using the JWT inside your app
+### Retrieving user's profile
 
-You might want to use the token given by Auth0 not only to decorate your http calls.
+You might want to access the user's profile in your application. It's common to display, at least the user's name and it's picture.
 
-You could, for example, decode it to get basic information about the user or request the complete user's profile to Auth0.  
-To achieve that, any protected component will recieve a `props` object containing a `token$` stream.  
+There are two ways to do that: decoding the JSON Web Token given by Auth0 to get basic information or requesting the user's full profile from Auth0.
+
+Both methods need the user's token. Fortunatly `protect` also passes on a `props` object that contains a `token$` stream to the component it's protecting.
+
 You've guested it, it's the stream of the user's token.
 
-To decode it, you can do the following:
+Let's try to decode this token to get some basic information about the user:
 
 ```javascript
 function Component(sources) {
@@ -189,7 +193,7 @@ function Component(sources) {
                     div("Please log in") //not logged
             }),
 
-+        auth0: getProfileRequest$
++        auth0: getProfileRequest$ //sending the profile request to the auth0 driver
     }
 }
 ```
@@ -247,7 +251,7 @@ function main({ auth0 }) {
 
 ### I want my token
 
-Ok this whole authentication thing is here for one thing: getting the user's jwt.  
+Ok this whole authentication thing is here for one thing: getting the user's JSON Web Token.  
 In order to get the token, the driver is giving you a `token$` stream, that you can subscribe to, that will output the user's token. In case there is no token or the user just logout, the stream will output a `null` value (in that case you probably want to send the lock a `show` action). 
 
 Here is a typical use of the `token$`:
@@ -268,14 +272,14 @@ function main({ auth0 }) {
 }
 ```
 
-Nice thing about the `token$` is that it handles for you the **storage of the token into localStorage**. That means, if the user reload the page, the `token$` will still output the token.  
+Nice thing about the `token$` is that it handles for you the **storage of the token into `localStorage`**. That means, if the user reload the page, the `token$` will still output the token.  
 To remove the token from the storage, don't forget to send the `logout` action.
 
 Here are the features of the `token$`:
 
-- stores the token in localStorage whenever a `parseHash` is run;
-- removes the token from localStorage when you send a `logout` action;
-- outputs the jwt token for you to consume.
+- stores the token in `localStorage` whenever a `parseHash` is run;
+- removes the token from `localStorage` when you send a `logout` action;
+- outputs the JWT token for you to consume.
 
 ### I want to deal with storage myself
 
