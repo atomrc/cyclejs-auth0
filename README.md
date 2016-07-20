@@ -130,6 +130,70 @@ const ProtectedComponent = protect(Component, {
 
 To know all the parameters you can set, I invite you to have a look at the [Auth0 lock documentation](https://auth0.com/docs/libraries/lock/customization)
 
+### Using the JWT inside your app
+
+You might want to use the token given by Auth0 not only to decorate your http calls.
+
+You could, for example, decode it to get basic information about the user or request the complete user's profile to Auth0.  
+To achieve that, any protected component will recieve a `props` object containing a `token$` stream.  
+You've guested it, it's the stream of the user's token.
+
+To decode it, you can do the following:
+
+```javascript
+function Component(sources) {
+    const token$ = sources.props.token$
+
+    const user$ = token$
+        .map(token => {
+            return token ? // /!\ if user is not logged in, token is null
+                jwtDecode(token) :
+                null
+        })
+
+    return {
+        DOM: user$
+            .map(user => {
+                return user ?
+                    div("hello " + user.nickname) : //logged
+                    div("Please log in") //not logged
+            })
+    }
+}
+```
+
+Or if you want to request the full user's profile to Auth0:
+
+```diff
+function Component(sources) {
+    const token$ = sources.props.token$
+
+    const getProfileRequest$ = token$
++        .filter(token => !!token)
++        .map(token => {action: "getProfile", params: token })
+-        .map(token => {
+-            return token ? // /!\ if user is not logged in, token is null
+-                jwtDecode(token) :
+-                null
+-        })
+
++   const user$ = sources
++       .auth0
++       .select("getProfile")
+
+    return {
+        DOM: user$
+            .map(user => {
+                return user ?
+                    div("hello " + user.nickname) : //logged
+                    div("Please log in") //not logged
+            }),
+
++        auth0: getProfileRequest$
+    }
+}
+```
+
 ## The driver
 
 ### Driver initialisation
