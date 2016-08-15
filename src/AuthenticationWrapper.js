@@ -5,10 +5,6 @@ const defaultAuth0ShowParams = {
     responseType: "token"
 };
 
-function containsAuthenticationToken(location) {
-    return location.hash.indexOf("id_token") > -1;
-}
-
 /**
  * Will decorate all sinks outputs using the corresponding decorate function
  *
@@ -35,24 +31,6 @@ function decorateSinks(sinks, token$, decorators) {
     return sinks;
 }
 
-function model(auth0, router) {
-    const token$ = auth0
-        .token$
-        .remember();
-
-    const location$ = router
-        .history$
-        //decorate location with the token status
-        .map(location => ({ ...location, hasToken: containsAuthenticationToken(location) }))
-
-    const state$ = xs
-            .combine(token$, location$)
-            .map(([ token, location ]) => ({ token, location }))
-            .remember()
-
-    return { token$, state$ };
-}
-
 /**
  * Responsible for wrapping a generic component with an authentication layer
  * Will also decorate all http sinks of the child component with the user's token
@@ -61,37 +39,28 @@ function model(auth0, router) {
  * @returns {Object} sinks
  */
 function AuthenticationWrapper(sources) {
-    const { router, auth0 } = sources;
+    const { auth0 } = sources;
     const {
         Child = () => { throw new Error("[Auth0Wrapper] missing child component") },
         auth0ShowParams = defaultAuth0ShowParams,
         decorators = {}
     } = sources.props.authWrapperParams;
 
-    const { token$, state$ } = model(auth0, router);
+    const token$ = auth0.token$;
 
     const childSources = { ...sources, props: { ...sources.props, token$ }};
     const sinks = Child(childSources);
 
-    const showLoginRequest$ = state$
-        .filter(({ token, location }) => !token && !location.hasToken)
+    const showLoginRequest$ = token$
+        .filter(token => !token)
         .mapTo({
             action: "show",
             params: auth0ShowParams
         });
 
-    const parseHashRequest$ = state$
-        .filter(({ token, location }) => !token && location.hasToken)
-        .map(({ location }) => ({ action: "parseHash", params: location.hash }));
-
-    const cleanHash$ = state$
-        .filter(state => state.location.hasToken && state.token)
-        .map(state => state.location.pathname)
-
     return decorateSinks({
         ...sinks,
-        router: xs.merge(cleanHash$, sinks.router || xs.empty()),
-        auth0: xs.merge(showLoginRequest$, parseHashRequest$, sinks.auth0 || xs.empty())
+        auth0: xs.merge(showLoginRequest$, sinks.auth0 || xs.empty())
     }, token$, decorators);
 }
 

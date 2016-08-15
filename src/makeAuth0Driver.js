@@ -8,11 +8,14 @@ import xs from "xstream";
  * @return {Function} selectResponse
  */
 function responseSelector(response$) {
-    return function selectResponse(event) {
+    return function selectResponse(selector) {
+        const events = selector
+            .split(",")
+            .map(sel => sel.replace(/ */, ""))
+            .filter(sel => !!sel);
+
         return response$
-            .filter(response => response.event === event)
-            .map(response => response.response)
-            .flatten();
+            .filter(response => events.indexOf(response.event) > -1)
     }
 }
 
@@ -76,19 +79,23 @@ function buildDriver(Auth0Lock, localStorage) {
 
         const select = responseSelector(response$);
 
-        const initialToken$ = xs
-            .of(localStorage.getItem(storageKey));
+        //if the location contains an id_token, do not send any initial token
+        //because the lock will parse the token in hash and the initial token
+        //will be given by either the authenticated event of any of the errors
+        const initialToken$ = location.hash.contains("id_token") ?
+            xs.empty() :
+            xs.of(localStorage.getItem(storageKey));
 
-        const removeToken$ = select("logout")
+        const removeToken$ = select("logout, unrecoverable_error, authorization_error")
             .map(() => {
                 localStorage.removeItem(storageKey)
                 return null;
             });
 
-        const storeToken$ = select("parseHash")
-            .map((token) => {
-                localStorage.setItem(storageKey, token)
-                return token;
+        const storeToken$ = select("authenticated")
+            .map(({ response }) => {
+                localStorage.setItem(storageKey, response.idToken)
+                return response.idToken;
             });
 
         return {
