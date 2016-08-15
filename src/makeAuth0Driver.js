@@ -7,11 +7,11 @@ import xs from "xstream";
  * @param {Stream} response$$ the response stream
  * @return {Function} selectResponse
  */
-function responseSelector(response$$) {
-    return function selectResponse(action) {
-        return response$$
-            .filter(response => response.action === action)
-            .map(response => response.response$)
+function responseSelector(response$) {
+    return function selectResponse(event) {
+        return response$
+            .filter(response => response.event === event)
+            .map(response => response.response)
             .flatten();
     }
 }
@@ -34,39 +34,7 @@ function buildDriver(Auth0Lock, localStorage) {
      */
     const actions = {
         "show": function (lock, params) {
-            var promise = new Promise(resolve => {
-                lock.show(params);
-                resolve("ok");
-            });
-            return promise;
-        },
-
-        "parseHash": function (lock, locationHash) {
-            var promise = new Promise((resolve, reject) => {
-                var hash = lock.parseHash(locationHash);
-                if (!hash) {
-                    return reject(false);
-                }
-
-                if (hash.error) {
-                    return reject(`[Auth0] There was an error logging in: ${hash.error}`);
-                }
-
-                return resolve(hash.id_token);
-            });
-
-            return promise;
-        },
-
-        "getProfile": function (lock, token) {
-            return new Promise((resolve, reject) => {
-                lock.getProfile(token, function (err, profile) {
-                    if (err) {
-                        return reject(err);
-                    }
-                    return resolve(profile);
-                });
-            })
+            lock.show(params);
         },
 
         "logout": function () {
@@ -75,30 +43,41 @@ function buildDriver(Auth0Lock, localStorage) {
     };
 
     function auth0Driver(action$, streamAdapter) {
-        const response$$ = action$
+        const noop = () => {};
+
+        action$
             .map(action => {
                 var actionFn = actions[action.action];
                 if (!actionFn) {
                     console.error(`[Auth0Driver] not available method: ${action.action}`);
                     return false;
                 }
-                var promise = actionFn(lock, action.params);
-                return {
-                    action: action.action,
-                    response$: promise ? xs.fromPromise(promise) : xs.empty()
-                }
+                actionFn(lock, action.params);
+                return { action: action.action }
             })
-            .filter(response => !!response)
-            .remember();
+            .addListener({ next: noop, error: noop, complete: noop })
 
-        const noop = () => {};
-        response$$.addListener({ next: noop, error: noop, complete: noop })
 
-        const select = responseSelector(response$$);
+        const response$ = xs.create({
+            start: function (listener) {
+                [
+                    "show",
+                    "hide",
+                    "authenticated",
+                    "hash_parsed",
+                    "unrecoverable_error",
+                    "authorization_error"
+                ].forEach(event => {
+                    lock.on(event, (response) => listener.next({ event, response }))
+                })
+            },
+            stop: noop
+        });
+
+        const select = responseSelector(response$);
 
         const initialToken$ = xs
-            .of(null)
-            .map(() => localStorage.getItem(storageKey));
+            .of(localStorage.getItem(storageKey));
 
         const removeToken$ = select("logout")
             .map(() => {
