@@ -1,7 +1,7 @@
 module.exports = {
     entry: './index.js',
     output: {
-        path: './build',
+        path: './public/js/',
         filename: 'index.js'
     },
 
