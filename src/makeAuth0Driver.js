@@ -54,8 +54,8 @@ function buildDriver(Auth0Lock, localStorage, location) {
      * @returns {Object}
      */
     const actions = {
-        "show": function (lock, params) {
-            lock.show(params);
+        "show": function (lock) {
+            lock.show();
         },
 
         "getProfile": function (lock, token) {
@@ -123,11 +123,11 @@ function buildDriver(Auth0Lock, localStorage, location) {
         };
     }
 
-    return function makeAuth0Driver(key, domain) {
+    return function makeAuth0Driver(key, domain, options = {}) {
         if (!key || !domain) {
             throw new Error("[Auth0] You must provide a key and a domain");
         }
-        lock = new Auth0Lock(key, domain);
+        lock = new Auth0Lock(key, domain, options);
 
         return auth0Driver;
     }
