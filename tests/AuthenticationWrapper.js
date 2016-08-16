@@ -9,7 +9,6 @@ import xs from "xstream";
 
 function getSources(overrides) {
     const defaultSources = {
-        router: { history$: xs.of({ hash: "" }) },
         auth0: { select: () => {}, token$: xs.of(null) },
         props: {
             authWrapperParams: {
@@ -111,43 +110,7 @@ describe("AuthenticationWrapper", () => {
             });
         });
 
-        describe("Token in url", () => {
-                const sources = getSources({
-                    router: { history$: xs.of({ hash: "#id_token=b64token" }) }
-                });
-
-                const {auth0} = AuthenticationWrapper(sources);
-
-            it("should parse token", (done) => {
-                auth0
-                    .take(1)
-                    .addListener(getListener({
-                        next: action => {
-                            expect(action.action).to.be("parseHash");
-                            done();
-                        }
-                    }));
-            });
-        });
-
         describe("Token given by the driver", () => {
-                it("should remove hashed token in url", (done) => {
-                    const sources = getSources({
-                        auth0: { select: () => xs.empty(), token$: xs.of(token) },
-                        router: { history$: xs.of({ pathname: "/app", hash: "#id_token=b64token" }) }
-                    });
-
-                    const { router } = AuthenticationWrapper(sources);
-
-                    router
-                        .addListener(getListener({
-                            next: url => {
-                                expect(url).to.be("/app")
-                                done();
-                            }
-                        }));
-                });
-
                 it("should give token to child", (done) => {
                     const sources = getSources({
                         auth0: { select: () => xs.empty(), token$: xs.of(token) },

@@ -16,7 +16,7 @@ function responseSelector(lock, action$) {
                 .filter(action => action.action === event)
                 .map(action => action.response$)
                 .flatten()
-                .map(response => ({ event, response }));
+                .map(response => ({ event, response }))
         }
         return xs
             .create({
@@ -77,7 +77,7 @@ function buildDriver(Auth0Lock, localStorage, location) {
     function auth0Driver(action$, streamAdapter) {
         const noop = () => {};
 
-        action$
+        const actionDone$ = action$
             .map(action => {
                 var actionFn = actions[action.action];
                 if (!actionFn) {
@@ -90,9 +90,11 @@ function buildDriver(Auth0Lock, localStorage, location) {
                     response$: promise ? xs.fromPromise(promise) : xs.empty()
                 }
             })
-            .addListener({ next: noop, error: noop, complete: noop })
+            .remember()
 
-        const select = responseSelector(lock, action$);
+        const select = responseSelector(lock, actionDone$);
+
+        actionDone$.addListener({ next: noop, error: noop, complete: noop })
 
         //if the location contains an id_token, do not send any initial token
         //because the lock will parse the token in hash and the initial token
