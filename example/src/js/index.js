@@ -5,6 +5,9 @@ import {makeAuth0Driver, protect} from "cyclejs-auth0";
 import {makeDOMDriver, div, button} from "@cycle/dom";
 import jwt from "jwt-decode";
 
+const appKey = null; //TODO fill your app's key here
+const appDomain = null; //TODO fill your app's domain here
+
 function App({ DOM, auth0, props }) {
 
     const logout$ = DOM
@@ -65,7 +68,7 @@ function main(sources) {
 
 var drivers = {
     DOM: makeDOMDriver("#main"),
-    auth0: makeAuth0Driver("tDjcxZrzyKB8a5SPqwn4XqJfdSvW4FXi", "atomrc.eu.auth0.com", {
+    auth0: makeAuth0Driver(appKey, appDomain, {
          auth: {
              params: { scope: "openid nickname" },
              responseType: "token"
