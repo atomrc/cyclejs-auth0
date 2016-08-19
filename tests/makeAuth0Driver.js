@@ -2,15 +2,13 @@
 import xs from "xstream";
 import buildDriver from "../src/makeAuth0Driver";
 import expect from "expect.js";
+import EventEmitter from "events";
 
 var noop = () => {};
 function Auth0LockMock(/*key, domain*/) {
 }
-Auth0LockMock.prototype = {
-    show: () => {},
-    getProfile: () => {},
-    parseHash: () => {}
-};
+Auth0LockMock.prototype = Object.create(EventEmitter.prototype);
+Auth0LockMock.prototype.show = noop;
 
 const failingLocalStorage = {
     getItem: () => { throw new Error("getItem should not be called") },
@@ -18,8 +16,23 @@ const failingLocalStorage = {
     removeItem: () => { throw new Error("removeItem should not be called") }
 };
 
+const location = { hash: "" }
+
+function generateListener(overrides) {
+    const defaults = {
+        next: noop,
+        complete: noop,
+        error: console.error.bind(console)
+    }
+
+    return {
+        ...defaults,
+        ...overrides,
+    };
+}
+
 describe("makeAuth0Driver", function () {
-    const makeAuth0Driver = buildDriver(Auth0LockMock, failingLocalStorage);
+    const makeAuth0Driver = buildDriver(Auth0LockMock, failingLocalStorage, location);
 
     it("should throw if parameters are not given", () => {
         const build = () => makeAuth0Driver()
@@ -32,7 +45,7 @@ describe("makeAuth0Driver", function () {
             expect(key).to.be("appkey");
             expect(domain).to.be("appdomain");
             lockCreated = true;
-        }, failingLocalStorage);
+        }, failingLocalStorage, location);
 
         const driver = makeAuth0Driver("appkey", "appdomain")(xs.empty());
         expect(driver).to.have.property("select")
@@ -43,57 +56,14 @@ describe("makeAuth0Driver", function () {
     describe("Actions", () => {
 
         describe("show action", () => {
-            var showCalled = false;
-            Auth0LockMock.prototype.show = function () {
-                showCalled = true;
-            }
-
-            const driver = makeAuth0Driver("key", "domain")(xs.of({ action: "show" }));
 
             it("should show lock", () => {
+                var showCalled = false;
+                Auth0LockMock.prototype.show = function () {
+                    showCalled = true;
+                }
+                makeAuth0Driver("key", "domain")(xs.of({ action: "show" }));
                 expect(showCalled).to.be(true);
-            });
-
-            it("should send response", (done) => {
-                driver
-                    .select("show")
-                    .addListener({
-                        next: response => {
-                            expect(response).to.be("ok");
-                            done();
-                        },
-                        error: noop,
-                        complete: noop
-                    });
-            });
-        });
-
-
-        describe("parseHash action", () => {
-            var parseHashCalled = false;
-            var response = { id_token: "token" };
-            Auth0LockMock.prototype.parseHash = function () {
-                parseHashCalled = true;
-                return response;
-            }
-
-            const driver = makeAuth0Driver("key", "domain")(xs.of({ action: "parseHash" }));
-
-            it("should parse hash", () => {
-                expect(parseHashCalled).to.be(true);
-            });
-
-            it("should send response", (done) => {
-                driver
-                    .select("parseHash")
-                    .addListener({
-                        next: response => {
-                            expect(response).to.be(response);
-                            done();
-                        },
-                        error: noop,
-                        complete: noop
-                    });
             });
         });
 
@@ -114,36 +84,27 @@ describe("makeAuth0Driver", function () {
             it("should send response", (done) => {
                 driver
                     .select("getProfile")
-                    .addListener({
+                    .addListener(generateListener({
                         next: response => {
                             expect(response).to.be(response);
                             done();
-                        },
-                        error: noop,
-                        complete: noop
-                    });
+                        }
+                    }));
             });
         });
 
         describe("logout action", () => {
-            var itemRemoved = false
-            const makeAuth0Driver = buildDriver(Auth0LockMock, {
-                removeItem: () => itemRemoved = true,
-                getItem: () => null
-            });
-            const driver = makeAuth0Driver("key", "domain")(xs.of({ action: "logout" }));
+            const makeAuth0Driver = buildDriver(Auth0LockMock, failingLocalStorage, location);
+            const { select } = makeAuth0Driver("key", "domain")(xs.of({ action: "logout" }));
 
             it("should send response", (done) => {
-                driver
-                    .select("logout")
-                    .addListener({
-                        next: response => {
-                            expect(response).to.be(null);
+                select("logout")
+                    .addListener(generateListener({
+                        next: event => {
+                            expect(event.response).to.be(null);
                             done();
-                        },
-                        error: noop,
-                        complete: noop
-                    });
+                        }
+                    }));
             });
         });
     });
@@ -157,13 +118,12 @@ describe("makeAuth0Driver", function () {
             }
             return Object.assign({}, defaults, overrides);
         }
-        const makeAuth0Driver = buildDriver(Auth0LockMock, makeLocalStorage());
+        const makeAuth0Driver = buildDriver(Auth0LockMock, makeLocalStorage(), location);
 
         it("should send initial token", (done) => {
-            const driver = makeAuth0Driver("key", "domain")(xs.empty());
+            const { token$ } = makeAuth0Driver("key", "domain")(xs.empty());
 
-            driver
-                .token$
+            token$
                 .addListener({
                     next: response => {
                         expect(response).to.be("defaulttoken");
@@ -174,12 +134,26 @@ describe("makeAuth0Driver", function () {
                 });
         });
 
+        it("should not send any token if token is in url's hash", done => {
+            const location = { hash: "access_token=jfkdlmsq&id_token=token" };
+            const makeAuth0Driver = buildDriver(Auth0LockMock, makeLocalStorage(), location);
+
+            const { token$ } = makeAuth0Driver("key", "domain")(xs.empty());
+
+
+            token$
+                .addListener(generateListener({
+                    next: () => done("should not emit")
+                }));
+            setTimeout(done, 10);
+        })
+
         describe("logout", () => {
             var itemRemoved = false;
             const localStorage = makeLocalStorage({
                 removeItem: () => itemRemoved = true
             });
-            const makeAuth0Driver = buildDriver(Auth0LockMock, localStorage);
+            const makeAuth0Driver = buildDriver(Auth0LockMock, localStorage, location);
 
             const driver = makeAuth0Driver("key", "domain")(xs.of({ action: "logout" }));
 
@@ -199,30 +173,5 @@ describe("makeAuth0Driver", function () {
             });
         });
 
-        describe("parsehash", () => {
-            var itemSetted = false;
-            const localStorage = makeLocalStorage({
-                setItem: () => itemSetted = true
-            });
-            Auth0LockMock.prototype.parseHash = () => ({ id_token: "parsedtoken" });
-            const makeAuth0Driver = buildDriver(Auth0LockMock, localStorage);
-
-            const driver = makeAuth0Driver("key", "domain")(xs.of({ action: "parseHash" }));
-
-            it("should send parsed token and store it in localStorage", (done) => {
-                driver
-                    .token$
-                    .drop(1)
-                    .addListener({
-                        next: response => {
-                            expect(response).to.be("parsedtoken");
-                            expect(itemSetted).to.be(true);
-                            done();
-                        },
-                        error: console.error.bind(console),
-                        complete: noop
-                    });
-            });
-        });
     });
 });

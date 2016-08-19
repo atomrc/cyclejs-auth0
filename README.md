@@ -10,7 +10,7 @@ The component wrapper allows you to:
 
 The driver allows you to:
 - init the auth0 lock [⬇](#driver-initialisation);
-- send actions [⬇](#sending-action-to-the-auth0-lock) to the lock (like `show`, `getProfile` or `parseHash`);
+- send actions [⬇](#sending-action-to-the-auth0-lock) to the lock (like `show` or `getProfile`);
 - read responses [⬇](#reading-responses-from-auth0) from the lock;
 - store token [⬇](#i-want-my-token) in `localStorage` (or you can do it yourself if you want [⬇](#i-want-to-deal-with-storage-myself)).
 
@@ -29,30 +29,20 @@ This is, by far, the simplest way to integrate Auth0 into your cyclejs app. The 
 
 ### Wrapper initialization
 
-The wrapper needs two things to work properly:
-- the [cyclic-router](https://github.com/cyclejs-community/cyclic-router) (needed to read the token from the url hash fragment sent by Auth0);
-- (of course) the [auth0 driver](#the-driver) included in this package.
-
-so before you start, please run:
-
-    npm install cyclic-router
-
-Then the basic setup will look like that:
+The basic setup will look like that:
 
 ```javascript
-import {makeRouterDriver} from 'cyclic-router'
 import {makeAuth0Driver, protect} from "cyclejs-auth0";
 
 function main(sources) {
-    //sources include `router` and `auth0`
+    //sources include `auth0`
     const protectedComponent = protect(Component)(sources);
 
     return protectedComponent;
 }
 
 const drivers = {
-    auth0: makeAuth0Driver("appkey", "appdomain"),
-    router: makeRouterDriver(createHistory())
+    auth0: makeAuth0Driver("appkey", "appdomain")
 }
 ```
 
@@ -119,15 +109,19 @@ instance.DOM //< this sink is the initial component's sink, untouched
 
 ### Customizing the Auth0 login form
 
-You might also want to customize how the auth0 form displays. There is the `auth0ShowParams` property that you can use to achieve that.
+You might also want to customize how the auth0 form displays. There is a config object you can pass on the the diver's contructor function to achieve that.
 
 ```javascript
-const ProtectedComponent = protect(Component, {
-    auth0ShowParams: {
-        authParams: { scope: "openid nickname" },
-        responseType: "token"
+const auth0Config = {
+    auth: {
+        params: { scope: "openid nickname" },
+        responseType: "token",
     }
-});
+};
+
+const drivers = {
+    auth0: makeAuth0Driver("appkey", "appdomain", auth0Config)
+}
 ```
 
 All the parameters you can set are documented in the [Auth0 lock documentation](https://auth0.com/docs/libraries/lock/customization)
@@ -184,6 +178,7 @@ function Component(sources) {
 +   const user$ = sources
 +       .auth0
 +       .select("getProfile")
++       .map(action => action.response)
 
     return {
         DOM: user$
@@ -216,7 +211,7 @@ The `makeAuth0Driver` will instantiate a lock for your app (see the lock api doc
 
 Now that your lock is instantiated and the driver up, you can send action to be sent to the auth0. To send action you need to send a stream to the `auth0` driver in the sinks of your app.
 
-Right now, the available actions are : `show`, `parseHash`, `getProfile` (+ `logout` that is not in the `lock` api)
+Right now, the available actions are : `show`, `getProfile` (+ `logout` that is not in the `lock` api)
 
 For example:
 
@@ -277,7 +272,7 @@ To remove the token from the storage, don't forget to send the `logout` action.
 
 Here are the features of the `token$`:
 
-- stores the token in `localStorage` whenever a `parseHash` is run;
+- stores the token in `localStorage` whenever an `authenticated` event is sent by the `lock`;
 - removes the token from `localStorage` when you send a `logout` action;
 - outputs the JWT token for you to consume.
 
@@ -285,7 +280,7 @@ Here are the features of the `token$`:
 
 No problem, if you want to store the token yourself you need to:
 - **not** use the `token$` at all;
-- get the token by subscribing to `select("parseHash")`.
+- get the token by subscribing to `select("authenticated")`.
 
 Here is an example:
 
@@ -300,8 +295,8 @@ function main({ auth0, storage }) {
 
     return {
         storage: auth0
-            .select("parseToken")
-            .map(token => ({ key: "token", value: token })) //will send a store action to the storage driver
+            .select("authenticated")
+            .map(response => ({ key: "token", value: response.token })) //will send a store action to the storage driver
     }
 }
 ```
