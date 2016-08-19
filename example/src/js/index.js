@@ -1,30 +1,56 @@
+import xs from "xstream";
 import {run} from "@cycle/xstream-run";
 
 import {makeAuth0Driver, protect} from "cyclejs-auth0";
 import {makeDOMDriver, div, button} from "@cycle/dom";
 import jwt from "jwt-decode";
 
-function App({ DOM, props }) {
+function App({ DOM, auth0, props }) {
 
     const logout$ = DOM
         .select(".logout")
         .events("click")
         .mapTo({ action: "logout" });
 
+    const showProfile$ = auth0
+        .token$
+        .map(token => DOM
+            .select(".show-profile")
+            .events("click")
+            .mapTo({ action: "getProfile", params: token })
+        )
+        .flatten();
+
+    const profile$ = auth0
+        .select("getProfile")
+        .map(({ response }) => response);
+
+    const state$ = xs
+        .combine(props.token$, profile$.startWith(null))
+        .map(([ token, profile ]) => ({
+            user: token ? jwt(token): null,
+            profile: profile
+        }))
+
     return {
-        DOM: props
-            .token$
-            .map(token => token ? jwt(token) : null)
-            .map(user => {
+        DOM: state$
+            .map(({ user, profile }) => {
+
+                const profileNode = profile ? 
+                    div(JSON.stringify(profile)) :
+                    null;
+
                 return user ?
                     div([
                         div("hello " + user.nickname),
-                        button(".logout", "logout")
+                        button(".logout", "logout"),
+                        button(".show-profile", "Show profile"),
+                        profileNode
                     ]) :
                     div("please log in")
             }),
 
-        auth0: logout$
+        auth0: xs.merge(logout$, showProfile$)
     }
 }
 
@@ -41,9 +67,9 @@ var drivers = {
     DOM: makeDOMDriver("#main"),
     auth0: makeAuth0Driver("tDjcxZrzyKB8a5SPqwn4XqJfdSvW4FXi", "atomrc.eu.auth0.com", {
          auth: {
-             params: { scope: "openid nickname" }
-         },
-         responseType: "token"
+             params: { scope: "openid nickname" },
+             responseType: "token"
+         }
      })
 };
 
