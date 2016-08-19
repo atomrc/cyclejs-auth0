@@ -7,12 +7,33 @@ import xs from "xstream";
  * @param {Stream} response$$ the response stream
  * @return {Function} selectResponse
  */
-function responseSelector(response$$) {
-    return function selectResponse(action) {
-        return response$$
-            .filter(response => response.action === action)
-            .map(response => response.response$)
-            .flatten();
+function responseSelector(lock, action$) {
+    function selectEvent(event, lock, action$) {
+        var driversEvents = ["getProfile", "logout"];
+
+        if (driversEvents.indexOf(event) > -1) {
+            return action$
+                .filter(action => action.action === event)
+                .map(action => action.response$)
+                .flatten()
+                .map(response => ({ event, response }))
+        }
+        return xs
+            .create({
+                start: (listener) => lock.on(event, (response) => listener.next({ event, response })),
+                stop: () => {}
+            })
+    }
+
+    return function selectResponse(selector) {
+        const events = selector
+            .split(",")
+            .map(sel => sel.replace(/ */, ""))
+            .filter(sel => !!sel);
+
+        const events$ = events.map(event => selectEvent(event, lock, action$))
+
+        return xs.merge(...events$);
     }
 }
 
@@ -23,7 +44,7 @@ function responseSelector(response$$) {
  * @param {class} Auth0Lock the Auth0 code
  * @returns {Function} makeAuth0Driver
  */
-function buildDriver(Auth0Lock, localStorage) {
+function buildDriver(Auth0Lock, localStorage, location) {
     var lock;
     const storageKey = "auh0-driver-token";
 
@@ -33,29 +54,8 @@ function buildDriver(Auth0Lock, localStorage) {
      * @returns {Object}
      */
     const actions = {
-        "show": function (lock, params) {
-            var promise = new Promise(resolve => {
-                lock.show(params);
-                resolve("ok");
-            });
-            return promise;
-        },
-
-        "parseHash": function (lock, locationHash) {
-            var promise = new Promise((resolve, reject) => {
-                var hash = lock.parseHash(locationHash);
-                if (!hash) {
-                    return reject(false);
-                }
-
-                if (hash.error) {
-                    return reject(`[Auth0] There was an error logging in: ${hash.error}`);
-                }
-
-                return resolve(hash.id_token);
-            });
-
-            return promise;
+        "show": function (lock) {
+            lock.show();
         },
 
         "getProfile": function (lock, token) {
@@ -75,7 +75,9 @@ function buildDriver(Auth0Lock, localStorage) {
     };
 
     function auth0Driver(action$, streamAdapter) {
-        const response$$ = action$
+        const noop = () => {};
+
+        const actionDone$ = action$
             .map(action => {
                 var actionFn = actions[action.action];
                 if (!actionFn) {
@@ -88,28 +90,29 @@ function buildDriver(Auth0Lock, localStorage) {
                     response$: promise ? xs.fromPromise(promise) : xs.empty()
                 }
             })
-            .filter(response => !!response)
-            .remember();
+            .remember()
 
-        const noop = () => {};
-        response$$.addListener({ next: noop, error: noop, complete: noop })
+        const select = responseSelector(lock, actionDone$);
 
-        const select = responseSelector(response$$);
+        actionDone$.addListener({ next: noop, error: noop, complete: noop })
 
-        const initialToken$ = xs
-            .of(null)
-            .map(() => localStorage.getItem(storageKey));
+        //if the location contains an id_token, do not send any initial token
+        //because the lock will parse the token in hash and the initial token
+        //will be given by either the authenticated event of any of the errors
+        const initialToken$ = location.hash.indexOf("id_token") > -1 ?
+            xs.empty() :
+            xs.of(null).map(() => localStorage.getItem(storageKey));
 
-        const removeToken$ = select("logout")
+        const removeToken$ = select("logout, unrecoverable_error, authorization_error")
             .map(() => {
                 localStorage.removeItem(storageKey)
                 return null;
             });
 
-        const storeToken$ = select("parseHash")
-            .map((token) => {
-                localStorage.setItem(storageKey, token)
-                return token;
+        const storeToken$ = select("authenticated")
+            .map(({ response }) => {
+                localStorage.setItem(storageKey, response.idToken)
+                return response.idToken;
             });
 
         return {
@@ -120,11 +123,11 @@ function buildDriver(Auth0Lock, localStorage) {
         };
     }
 
-    return function makeAuth0Driver(key, domain) {
+    return function makeAuth0Driver(key, domain, options = {}) {
         if (!key || !domain) {
             throw new Error("[Auth0] You must provide a key and a domain");
         }
-        lock = new Auth0Lock(key, domain);
+        lock = new Auth0Lock(key, domain, options);
 
         return auth0Driver;
     }
