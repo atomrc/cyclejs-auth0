@@ -301,6 +301,10 @@ function main({ auth0, storage }) {
 }
 ```
 
+## Cycle.js Community
+
+To discover many awesome resources, made by the community, about Cycle.js (drivers, videos, components, utilities ...), be sure to check [cyclejs-community/awesome-cyclejs](https://github.com/cyclejs-community/awesome-cyclejs) out ;)
+
 ## Feedback
 
 - "OMG it's awesome, it has changed my life"
