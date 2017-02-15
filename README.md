@@ -69,9 +69,7 @@ function main(sources) {
     //else it will just pass the decoded token to your component for you to consume it
     const sinks = protectedComponent(sources);
 
-    return {
-        DOM: sinks.DOM
-    }
+    return sinks;
 }
 ```
 
