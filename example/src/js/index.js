@@ -2,7 +2,7 @@ import xs from "xstream";
 import {run} from "@cycle/xstream-run";
 
 import {makeAuth0Driver, protect} from "cyclejs-auth0";
-import {makeDOMDriver, div, button} from "@cycle/dom";
+import {makeDOMDriver, div, button, pre} from "@cycle/dom";
 import jwt from "jwt-decode";
 
 const appKey = null; //TODO fill your app's key here
@@ -40,7 +40,7 @@ function App({ DOM, auth0, props }) {
             .map(({ user, profile }) => {
 
                 const profileNode = profile ? 
-                    div(JSON.stringify(profile)) :
+                    pre(JSON.stringify(profile, null, 2)) :
                     null;
 
                 return user ?
