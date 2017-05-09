@@ -49,7 +49,7 @@ describe("makeAuth0Driver", function () {
 
         const driver = makeAuth0Driver("appkey", "appdomain")(xs.empty());
         expect(driver).to.have.property("select")
-        expect(driver).to.have.property("token$")
+        expect(driver).to.have.property("tokens$")
         expect(lockCreated).to.be(true);
     })
 
@@ -93,6 +93,32 @@ describe("makeAuth0Driver", function () {
             });
         });
 
+        describe("getUserInfo action", () => {
+            var getUserInfoCalled = false;
+            var response = { sub: "user_id" };
+            Auth0LockMock.prototype.getUserInfo = function (token, callback) {
+                getUserInfoCalled = true;
+                return callback(null, response);
+            }
+
+            const driver = makeAuth0Driver("key", "domain")(xs.of({ action: "getUserInfo" }));
+
+            it("should get user info", () => {
+                expect(getUserInfoCalled).to.be(true);
+            });
+
+            it("should send response", (done) => {
+                driver
+                    .select("getUserInfo")
+                    .addListener(generateListener({
+                        next: response => {
+                            expect(response).to.be(response);
+                            done();
+                        },
+                    }));
+            });
+        });
+
         describe("logout action", () => {
             const makeAuth0Driver = buildDriver(Auth0LockMock, failingLocalStorage, location);
             const { select } = makeAuth0Driver("key", "domain")(xs.of({ action: "logout" }));
@@ -109,10 +135,10 @@ describe("makeAuth0Driver", function () {
         });
     });
 
-    describe("token$ stream", () => {
+    describe("tokens$ stream", () => {
         function makeLocalStorage(overrides) {
             var defaults = {
-                getItem: () => "defaulttoken",
+                getItem: () => '{ "idToken": "defaulttoken" }',
                 setItem: noop,
                 removeItem: noop
             }
@@ -121,15 +147,15 @@ describe("makeAuth0Driver", function () {
         const makeAuth0Driver = buildDriver(Auth0LockMock, makeLocalStorage(), location);
 
         it("should send initial token", (done) => {
-            const { token$ } = makeAuth0Driver("key", "domain")(xs.empty());
+            const { tokens$ } = makeAuth0Driver("key", "domain")(xs.empty());
 
-            token$
+            tokens$
                 .addListener({
                     next: response => {
-                        expect(response).to.be("defaulttoken");
+                        expect(response.idToken).to.be("defaulttoken");
                         done();
                     },
-                    error: noop,
+                    error: console.error.bind(console),
                     complete: noop
                 });
         });
@@ -138,10 +164,10 @@ describe("makeAuth0Driver", function () {
             const location = { hash: "access_token=jfkdlmsq&id_token=token" };
             const makeAuth0Driver = buildDriver(Auth0LockMock, makeLocalStorage(), location);
 
-            const { token$ } = makeAuth0Driver("key", "domain")(xs.empty());
+            const { tokens$ } = makeAuth0Driver("key", "domain")(xs.empty());
 
 
-            token$
+            tokens$
                 .addListener(generateListener({
                     next: () => done("should not emit")
                 }));
@@ -159,7 +185,7 @@ describe("makeAuth0Driver", function () {
 
             it("should send empty token and remove from storage", (done) => {
                 driver
-                    .token$
+                    .tokens$
                     .drop(1)
                     .addListener({
                         next: response => {

@@ -9,21 +9,21 @@ const defaultAuth0ShowParams = {
  * Will decorate all sinks outputs using the corresponding decorate function
  *
  * @param {Object} sinks the sinks to decorate 
- * @param {Stream} token$ the token that will be feeded to the decorator
+ * @param {Stream} tokens$ the tokens that will be feeded to the decorator
  * @param {Object} decorators all the decorators, formatted like { sinkName: decorateFn }
  * @returns {Object} The decorated sinks
  */
-function decorateSinks(sinks, token$, decorators) {
+function decorateSinks(sinks, tokens$, decorators) {
     const sinksToDecorate = Object.keys(decorators); //get all the decorators
 
     sinksToDecorate.map(sinkName => {
         var sink = sinks[sinkName];
         var decorate = decorators[sinkName];
         if (!sink) { return; }
-        sinks[sinkName] = token$
-            .filter(token => !!token)
-            .map(token => {
-                return sink.map(data => decorate(data, token))
+        sinks[sinkName] = tokens$
+            .filter(tokens => !!tokens)
+            .map(tokens => {
+                return sink.map(data => decorate(data, tokens.idToken))
             })
             .flatten();
     })
@@ -33,7 +33,7 @@ function decorateSinks(sinks, token$, decorators) {
 
 /**
  * Responsible for wrapping a generic component with an authentication layer
- * Will also decorate all http sinks of the child component with the user's token
+ * Will also decorate all http sinks of the child component with the user's tokens
  *
  * @param {Object} sources sources (that will also be used by the child component)
  * @returns {Object} sinks
@@ -46,13 +46,13 @@ function AuthenticationWrapper(sources) {
         decorators = {}
     } = sources.props.authWrapperParams;
 
-    const token$ = auth0.token$;
+    const tokens$ = auth0.tokens$;
 
-    const childSources = { ...sources, props: { ...sources.props, token$ }};
+    const childSources = { ...sources, props: { ...sources.props, tokens$ }};
     const sinks = Child(childSources);
 
-    const showLoginRequest$ = token$
-        .filter(token => !token)
+    const showLoginRequest$ = tokens$
+        .filter(tokens => !tokens)
         .mapTo({
             action: "show",
             params: auth0ShowParams
@@ -61,7 +61,7 @@ function AuthenticationWrapper(sources) {
     return decorateSinks({
         ...sinks,
         auth0: xs.merge(showLoginRequest$, sinks.auth0 || xs.empty())
-    }, token$, decorators);
+    }, tokens$, decorators);
 }
 
 export default AuthenticationWrapper;
