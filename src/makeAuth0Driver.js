@@ -9,7 +9,7 @@ import xs from "xstream";
  */
 function responseSelector(lock, action$) {
     function selectEvent(event, lock, action$) {
-        var driversEvents = ["getProfile", "logout"];
+        var driversEvents = ["getProfile", "getUserInfo", "logout"];
 
         if (driversEvents.indexOf(event) > -1) {
             return action$
@@ -59,8 +59,20 @@ function buildDriver(Auth0Lock, localStorage, location) {
         },
 
         "getProfile": function (lock, token) {
+            console.warn("The getProfile method will soon be deprecated, use getUserInformation instead")
             return new Promise((resolve, reject) => {
                 lock.getProfile(token, function (err, profile) {
+                    if (err) {
+                        return reject(err);
+                    }
+                    return resolve(profile);
+                });
+            })
+        },
+
+        "getUserInfo": function (lock, accessToken) {
+            return new Promise((resolve, reject) => {
+                lock.getUserInfo(accessToken, function (err, profile) {
                     if (err) {
                         return reject(err);
                     }
@@ -101,7 +113,7 @@ function buildDriver(Auth0Lock, localStorage, location) {
         //will be given by either the authenticated event of any of the errors
         const initialToken$ = location.hash.indexOf("id_token") > -1 ?
             xs.empty() :
-            xs.of(null).map(() => localStorage.getItem(storageKey));
+            xs.of(null).map(() => JSON.parse(localStorage.getItem(storageKey)));
 
         const removeToken$ = select("logout, unrecoverable_error, authorization_error")
             .map(() => {
@@ -111,13 +123,17 @@ function buildDriver(Auth0Lock, localStorage, location) {
 
         const storeToken$ = select("authenticated")
             .map(({ response }) => {
-                localStorage.setItem(storageKey, response.idToken)
-                return response.idToken;
+                var tokens = {
+                    accessToken: response.accessToken,
+                    idToken: response.idToken
+                }
+                localStorage.setItem(storageKey, JSON.stringify(tokens))
+                return tokens;
             });
 
         return {
             select: select,
-            token$: xs
+            tokens$: xs
                 .merge(initialToken$, storeToken$, removeToken$)
                 .remember()
         };
