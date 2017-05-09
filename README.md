@@ -10,7 +10,7 @@ The component wrapper allows you to:
 
 The driver allows you to:
 - init the auth0 lock [⬇](#driver-initialisation);
-- send actions [⬇](#sending-action-to-the-auth0-lock) to the lock (like `show` or `getProfile`);
+- send actions [⬇](#sending-action-to-the-auth0-lock) to the lock (like `show` or `getUserInfo`);
 - read responses [⬇](#reading-responses-from-auth0) from the lock;
 - store token [⬇](#i-want-my-token) in `localStorage` (or you can do it yourself if you want [⬇](#i-want-to-deal-with-storage-myself)).
 
@@ -84,7 +84,7 @@ const ProtectedComponent = protect(Component, {
     decorators: {
         //let's decorate the HTTP sink
         //the decorate function is given each produced value of the 
-        //initial sink + the user's token
+        //initial sink + the user's idToken
         HTTP: (request, token) => {
             return {
                 ...request,
@@ -92,7 +92,7 @@ const ProtectedComponent = protect(Component, {
                     ...request.headers,
                     //Will add the Authorization header to
                     //any of the http request sent by the component
-                    "Authorization": "Bearer " + token
+                    "Authorization": "Bearer:" + token
                 }
             }
         }
@@ -130,20 +130,20 @@ You might want to access the user's profile in your application. It's common to 
 
 There are two ways to do that: decoding the JSON Web Token given by Auth0 to get basic information or requesting the user's full profile from Auth0.
 
-Both methods need the user's token. Fortunatly `protect` also passes on a `props` object that contains a `token$` stream to the component it's protecting.
+Both methods need the user's token. Fortunatly `protect` also passes on a `props` object that contains a `tokens$` stream to the component it's protecting.
 
-You've guested it, it's the stream of the user's token.
+You've guested it, it's the stream of the user's tokens (accessToken and idToken).
 
 Let's try to decode this token to get some basic information about the user:
 
 ```javascript
 function Component(sources) {
-    const token$ = sources.props.token$
+    const tokens$ = sources.props.tokens$
 
-    const user$ = token$
-        .map(token => {
-            return token ? // /!\ if user is not logged in, token is null
-                jwtDecode(token) :
+    const user$ = tokens$
+        .map(tokens => {
+            return token ? // /!\ if user is not logged in, tokens is null
+                jwtDecode(token.idToken) :
                 null
         })
 
@@ -162,11 +162,11 @@ Or if you want to request the full user's profile to Auth0:
 
 ```diff
 function Component(sources) {
-    const token$ = sources.props.token$
+    const tokens$ = sources.props.tokens$
 
-    const getProfileRequest$ = token$
-+        .filter(token => !!token)
-+        .map(token => {action: "getProfile", params: token })
+    const getUserInfoRequest$ = tokens$
++        .filter(tokens => !!tokens)
++        .map(tokens => {action: "getUserInfo", params: tokens.accessToken })
 -        .map(token => {
 -            return token ? // /!\ if user is not logged in, token is null
 -                jwtDecode(token) :
@@ -175,7 +175,7 @@ function Component(sources) {
 
 +   const user$ = sources
 +       .auth0
-+       .select("getProfile")
++       .select("getUserInfo")
 +       .map(action => action.response)
 
     return {
@@ -186,7 +186,7 @@ function Component(sources) {
                     div("Please log in") //not logged
             }),
 
-+        auth0: getProfileRequest$ //sending the profile request to the auth0 driver
++        auth0: getUserInfoRequest$ //sending the user info request to the auth0 driver
     }
 }
 ```
@@ -209,7 +209,7 @@ The `makeAuth0Driver` will instantiate a lock for your app (see the lock api doc
 
 Now that your lock is instantiated and the driver up, you can send action to be sent to the auth0. To send action you need to send a stream to the `auth0` driver in the sinks of your app.
 
-Right now, the available actions are : `show`, `getProfile` (+ `logout` that is not in the `lock` api)
+Right now, the available actions are : `show`, `getUserInfo` (+ `logout` that is not in the `lock` api)
 
 For example:
 
@@ -245,30 +245,30 @@ function main({ auth0 }) {
 ### I want my token
 
 Ok this whole authentication thing is here for one thing: getting the user's JSON Web Token.  
-In order to get the token, the driver is giving you a `token$` stream, that you can subscribe to, that will output the user's token. In case there is no token or the user just logout, the stream will output a `null` value (in that case you probably want to send the lock a `show` action). 
+In order to get the token, the driver is giving you a `tokens$` stream, that you can subscribe to, that will output the user's idToken and accessToken. In case there are no tokens or the user just logout, the stream will output a `null` value (in that case you probably want to send the lock a `show` action). 
 
-Here is a typical use of the `token$`:
+Here is a typical use of the `tokens$`:
 
 ```javascript
 function main({ auth0 }) {
-    const userToken$ = auth0.token$;
+    const userTokens$ = auth0.tokens$;
 
-    const user$ = userToken$
+    const user$ = userTokens$
         .filter(token => !!token) //check that the token is not empty
-        .map(token => jwtDecode(token)) //decode jwt to get the basic user's info
+        .map(token => jwtDecode(token.idToken)) //decode jwt to get the basic user's info
 
     return {
-        auth0: userToken$
+        auth0: userTokens$
             .filter(token => !token) //if token is null
             .mapTo({ action: "show" }) //then send auth0 the show action
     }
 }
 ```
 
-Nice thing about the `token$` is that it handles for you the **storage of the token into `localStorage`**. That means, if the user reload the page, the `token$` will still output the token.  
+Nice thing about the `tokens$` is that it handles for you the **storage of the token into `localStorage`**. That means, if the user reload the page, the `tokens$` will still output the token.  
 To remove the token from the storage, don't forget to send the `logout` action.
 
-Here are the features of the `token$`:
+Here are the features of the `tokens$`:
 
 - stores the token in `localStorage` whenever an `authenticated` event is sent by the `lock`;
 - removes the token from `localStorage` when you send a `logout` action;
@@ -277,24 +277,28 @@ Here are the features of the `token$`:
 ### I want to deal with storage myself
 
 No problem, if you want to store the token yourself you need to:
-- **not** use the `token$` at all;
+- **not** use the `tokens$` at all;
 - get the token by subscribing to `select("authenticated")`.
 
 Here is an example:
 
 ```javascript
 function main({ auth0, storage }) {
-    var token$ = storage
+    var tokens$ = storage
         .local
         .getItem("token")
-        .filter(token => !!token);
+        .filter(tokens => !!tokens)
+        .map(tokens => JSON.parse(tokens));
 
-    //code that consumes the token$
+    //code that consumes the tokens$
 
     return {
         storage: auth0
             .select("authenticated")
-            .map(response => ({ key: "token", value: response.token })) //will send a store action to the storage driver
+            .map(response => ({ key: "token", value: JSON.stringify({
+                idToken: response.idToken,
+                accessToken: response.accessToken
+            })})) //will send a store action to the storage driver
     }
 }
 ```
