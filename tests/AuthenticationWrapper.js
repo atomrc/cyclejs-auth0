@@ -9,7 +9,7 @@ import xs from "xstream";
 
 function getSources(overrides) {
     const defaultSources = {
-        auth0: { select: () => {}, token$: xs.of(null) },
+        auth0: { select: () => {}, tokens$: xs.of(null) },
         props: {
             authWrapperParams: {
                 Child: () => ({})
@@ -35,7 +35,7 @@ function getListener(overrides) {
 
 describe("AuthenticationWrapper", () => {
     const AuthenticationWrapper = require(APP_PATH + "/AuthenticationWrapper").default,
-        token = jwt.sign({ nickname: "felix" }, "secret");
+        tokens = { accessToken: "accessToken", idToken: jwt.sign({ nickname: "felix" }, "secret") };
 
     describe("Building", function () {
         it("should throw if child component is not given", (done) => {
@@ -71,7 +71,7 @@ describe("AuthenticationWrapper", () => {
 
         it("should decorate child sinks with token", (done) => {
             const sources = getSources({
-                auth0: { select: () => xs.empty(), token$: xs.of(token) },
+                auth0: { select: () => xs.empty(), tokens$: xs.of(tokens) },
                 props: {
                     authWrapperParams: {
                         Child: () => ({ childSink: xs.of("from child") }),
@@ -88,7 +88,7 @@ describe("AuthenticationWrapper", () => {
                 .addListener(getListener({
                     next: data => {
                         expect(data.value).to.be("from child");
-                        expect(data.token).to.be(token);
+                        expect(data.token).to.be(tokens.idToken);
                         done();
                     }
                 }))
@@ -113,15 +113,15 @@ describe("AuthenticationWrapper", () => {
         describe("Token given by the driver", () => {
                 it("should give token to child", (done) => {
                     const sources = getSources({
-                        auth0: { select: () => xs.empty(), token$: xs.of(token) },
+                        auth0: { select: () => xs.empty(), tokens$: xs.of(tokens) },
                         props: {
                             authWrapperParams: {
                                 Child: ({ props }) => {
                                     props
-                                        .token$
+                                        .tokens$
                                         .addListener(getListener({
                                             next: (tok) => {
-                                                expect(tok).to.be(token)
+                                                expect(tok).to.be(tokens)
                                                 done();
                                             }
                                         }))
@@ -139,7 +139,7 @@ describe("AuthenticationWrapper", () => {
         describe("User logs out", () => {
                 it("should re show Auth0 login form", (done) => {
                     const sources = getSources({
-                        auth0: { select: () => xs.empty(), token$: xs.of(token, null) }
+                        auth0: { select: () => xs.empty(), tokens$: xs.of(tokens, null) }
                     });
 
                     const { auth0 } = AuthenticationWrapper(sources);
