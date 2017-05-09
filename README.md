@@ -142,8 +142,8 @@ function Component(sources) {
 
     const user$ = tokens$
         .map(tokens => {
-            return token ? // /!\ if user is not logged in, tokens is null
-                jwtDecode(token.idToken) :
+            return tokens ? // /!\ if user is not logged in, tokens is null
+                jwtDecode(tokens.idToken) :
                 null
         })
 
@@ -167,9 +167,9 @@ function Component(sources) {
     const getUserInfoRequest$ = tokens$
 +        .filter(tokens => !!tokens)
 +        .map(tokens => {action: "getUserInfo", params: tokens.accessToken })
--        .map(token => {
--            return token ? // /!\ if user is not logged in, token is null
--                jwtDecode(token) :
+-        .map(tokens => {
+-            return tokens ? // /!\ if user is not logged in, tokens is null
+-                jwtDecode(tokens.idToken) :
 -                null
 -        })
 
