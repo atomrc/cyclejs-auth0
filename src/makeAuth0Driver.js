@@ -46,7 +46,7 @@ function responseSelector(lock, action$) {
  */
 function buildDriver(Auth0Lock, localStorage, location) {
     var lock;
-    const storageKey = "auh0-driver-token";
+    const storageKey = "auh0-driver-tokens";
 
     /**
      * Contains all the available actions that can be done against the auth0 api
