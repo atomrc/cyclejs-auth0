@@ -16,22 +16,22 @@ function App({ DOM, auth0, props }) {
         .mapTo({ action: "logout" });
 
     const showProfile$ = auth0
-        .token$
-        .map(token => DOM
+        .tokens$
+        .map(tokens => DOM
             .select(".show-profile")
             .events("click")
-            .mapTo({ action: "getProfile", params: token })
+            .mapTo({ action: "getUserInfo", params: tokens.accessToken })
         )
-        .flatten();
+        .flatten()
 
     const profile$ = auth0
-        .select("getProfile")
+        .select("getUserInfo")
         .map(({ response }) => response);
 
     const state$ = xs
-        .combine(props.token$, profile$.startWith(null))
-        .map(([ token, profile ]) => ({
-            user: token ? jwt(token): null,
+        .combine(props.tokens$, profile$.startWith(null))
+        .map(([ tokens, profile ]) => ({
+            user: tokens.idToken ? jwt(tokens.idToken): null,
             profile: profile
         }))
 
