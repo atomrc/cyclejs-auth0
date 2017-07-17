@@ -76,7 +76,7 @@ describe("AuthenticationWrapper", () => {
                     authWrapperParams: {
                         Child: () => ({ childSink: xs.of("from child") }),
                         decorators: {
-                            childSink: (value, token) => ({ value, token })
+                            childSink: (value, tokens) => ({value, tokens})
                         }
                     }
                 }
@@ -88,7 +88,7 @@ describe("AuthenticationWrapper", () => {
                 .addListener(getListener({
                     next: data => {
                         expect(data.value).to.be("from child");
-                        expect(data.token).to.be(tokens.idToken);
+                        expect(data.tokens).to.be(tokens);
                         done();
                     }
                 }))

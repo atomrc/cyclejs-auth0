@@ -84,15 +84,15 @@ const ProtectedComponent = protect(Component, {
     decorators: {
         //let's decorate the HTTP sink
         //the decorate function is given each produced value of the 
-        //initial sink + the user's idToken
-        HTTP: (request, token) => {
+        //initial sink + the user's tokens (accessToken and idToken)
+        HTTP: (request, tokens) => {
             return {
                 ...request,
                 headers: {
                     ...request.headers,
-                    //Will add the Authorization header to
-                    //any of the http request sent by the component
-                    "Authorization": "Bearer:" + token
+                    //Will add an Authorization header containing the user's access token to
+                    //any of the http requests sent by the component
+                    "Authorization": "Bearer:" + tokens.accessToken
                 }
             }
         }
