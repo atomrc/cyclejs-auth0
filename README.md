@@ -92,7 +92,7 @@ const ProtectedComponent = protect(Component, {
                     ...request.headers,
                     //Will add an Authorization header containing the user's access token to
                     //any of the http requests sent by the component
-                    "Authorization": "Bearer:" + tokens.accessToken
+                    "Authorization": "Bearer " + tokens.accessToken
                 }
             }
         }
