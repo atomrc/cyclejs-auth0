@@ -62,7 +62,7 @@ function MyComponent(sources) {
 }
 
 function main(sources) {
-    const ProtectedComponent = protect(Component); //now the component is protected
+    const ProtectedComponent = protect(MyComponent); //now the component is protected
 
     //when the component is initiated it will lookup for a jwt token in localStorage
     //if no token is found, it will spawn the auth0 login form
@@ -105,36 +105,17 @@ instance.HTTP //< this sink will be decorated with the token
 instance.DOM //< this sink is the initial component's sink, untouched
 ```
 
-### Customizing the Auth0 login form
-
-You might also want to customize how the auth0 form displays. There is a config object you can pass on the the diver's contructor function to achieve that.
-
-```javascript
-const auth0Config = {
-    auth: {
-        params: { scope: "openid nickname" },
-        responseType: "token",
-    }
-};
-
-const drivers = {
-    auth0: makeAuth0Driver("appkey", "appdomain", auth0Config)
-}
-```
-
-All the parameters you can set are documented in the [Auth0 lock documentation](https://auth0.com/docs/libraries/lock/customization)
-
 ### Retrieving user's profile
 
-You might want to access the user's profile in your application. It's common to display, at least the user's name and it's picture.
+You might want to access the user's profile in your application. It's common to display at least the user's name and picture.
 
-There are two ways to do that: decoding the JSON Web Token given by Auth0 to get basic information or requesting the user's full profile from Auth0.
+There are two ways to do that: decoding the JSON Web Token given by Auth0 to get basic information, or requesting the user's full profile from Auth0.
 
-Both methods need the user's token. Fortunatly `protect` also passes on a `props` object that contains a `tokens$` stream to the component it's protecting.
+Both methods need the user's token. Fortunately `protect` also passes a `props` object, that contains a `tokens$` stream, on to the component it's protecting.
 
-You've guested it, it's the stream of the user's tokens (accessToken and idToken).
+You guessed it, it's the stream of the user's tokens (accessToken and idToken).
 
-Let's try to decode this token to get some basic information about the user:
+Let's try to decode `token$` to get some basic information about the user:
 
 ```javascript
 function Component(sources) {
@@ -158,7 +139,7 @@ function Component(sources) {
 }
 ```
 
-Or if you want to request the full user's profile to Auth0:
+Or if you want to request the full user profile from Auth0:
 
 ```diff
 function Component(sources) {
@@ -193,7 +174,7 @@ function Component(sources) {
 
 ## The driver
 
-### Driver initialisation
+### Driver initialization
 
 ```javascript
 const drivers = {
@@ -203,21 +184,42 @@ const drivers = {
 Cycle.run(main, drivers);
 ```
 
-The `makeAuth0Driver` will instantiate a lock for your app (see the lock api doc here: https://github.com/auth0/lock#documentation )
+The `makeAuth0Driver` will instantiate an Auth0 lock for your app. (See [Auth0 lock API documentation](https://github.com/auth0/lock#api).)
+
+### Customizing the Auth0 login form
+
+You might also want to customize how the auth0 form displays. There is a config object you can pass on the the driver's constructor function to achieve that.
+
+```javascript
+const auth0Config = {
+    auth: {
+        params: { scope: "openid nickname" },
+        responseType: "token"
+    }
+};
+
+const drivers = {
+    auth0: makeAuth0Driver("appkey", "appdomain", auth0Config)
+}
+```
+
+The parameters you can set are documented in the [Auth0 lock documentation](https://auth0.com/docs/libraries/lock/customization).
+
+## The Auth0 lock
 
 ### Sending action to the Auth0 lock
 
-Now that your lock is instantiated and the driver up, you can send action to be sent to the auth0. To send action you need to send a stream to the `auth0` driver in the sinks of your app.
+Now that your lock is instantiated and the driver configured, you can send an action to auth0. To do this you need to send a stream to the `auth0` driver in your app sinks.
 
-Right now, the available actions are : `show`, `getUserInfo` (+ `logout` that is not in the `lock` api)
+Right now the available actions are: `show`, `getUserInfo`, and `logout` (this logout replaces the [`lock` api logout](https://auth0.com/docs/libraries/lock/v10/api#logout-)).
 
 For example:
 
 ```javascript
 function main(sources) {
     return {
-        auth0: xs.of({ //this will ask the auth0's lock to show the login form
-            action: "show",
+        auth0: xs.of({
+            action: "show", //this will ask the auth0's lock to show the login form
             params: { //the options object that will be sent to the `show` method
                 authParams: { scope: "openid nickname" },
                 responseType: "token"
@@ -229,9 +231,9 @@ function main(sources) {
 }
 ```
 
-### Reading responses from Auth0
+### Reading responses from the Auth0 lock
 
-Whenever an action is run against the lock, the driver is outputting a response stream. you can consume that stream using the `select` function. You can use it to filter the action you want to listen to. For example if you want to do something when the lock has shown, you can do the following:
+Whenever an action is run against the lock, the driver outputs a response stream. You can consume this stream using the `select` function. Then you can filter for the action you want to listen to. For example, if you want to do something when the lock has "shown", you can do the following:
 
 ```javascript
 function main({ auth0 }) {
@@ -242,10 +244,12 @@ function main({ auth0 }) {
 }
 ```
 
+## The tokens$
+
 ### I want my token
 
 Ok this whole authentication thing is here for one thing: getting the user's JSON Web Token.  
-In order to get the token, the driver is giving you a `tokens$` stream, that you can subscribe to, that will output the user's idToken and accessToken. In case there are no tokens or the user just logout, the stream will output a `null` value (in that case you probably want to send the lock a `show` action). 
+In order to get the token, the driver provides a `tokens$` stream that will output the user's idToken and accessToken. In case there are no tokens or the user is logged out the stream will output a `null` value (in that case you probably want to send the lock a `show` action). 
 
 Here is a typical use of the `tokens$`:
 
@@ -265,7 +269,7 @@ function main({ auth0 }) {
 }
 ```
 
-Nice thing about the `tokens$` is that it handles for you the **storage of the token into `localStorage`**. That means, if the user reload the page, the `tokens$` will still output the token.  
+Nice thing about the `tokens$` is that it handles the **storage of the token into `localStorage`** for you. That means, if the user reloads the page, the `tokens$` will still output the token.  
 To remove the token from the storage, don't forget to send the `logout` action.
 
 Here are the features of the `tokens$`:
@@ -305,14 +309,14 @@ function main({ auth0, storage }) {
 
 ## Cycle.js Community
 
-To discover many awesome resources, made by the community, about Cycle.js (drivers, videos, components, utilities ...), be sure to check [cyclejs-community/awesome-cyclejs](https://github.com/cyclejs-community/awesome-cyclejs) out ;)
+To discover many awesome resources made by the community about Cycle.js (drivers, videos, components, utilities...) be sure to check [cyclejs-community/awesome-cyclejs](https://github.com/cyclejs-community/awesome-cyclejs) out. ;)
 
 ## Feedback
 
-- "OMG it's awesome, it has changed my life"
-- "I use Auth0 like that, how can I do with your driver?"
+- "OMG it's awesome, it has changed my life!"
+- "I use Auth0 like this, how can I do this with your driver?"
 - "Would you consider implementing this?"
-- "You should do that instead of that"
-- "You really don't know how to speak english you french guys"
+- "You should do this instead of that."
+- "You really don't know how to speak english you french guys."
 
-As long as it is constructive and polite, any feedback will be welcomed, so please, be my guest :)
+As long as it is constructive and polite, any feedback will be welcomed, so, please, be my guest :)
